@@ -4,3 +4,10 @@ backend/*.pyc
 backend/__pycache__/
 backend/db.sqlite3
 backend/.env
+
+# Misc
+/Misc/
+
+# Include only the src directory within smart-contract
+!smart-contract/src/
+smart-contract/*
