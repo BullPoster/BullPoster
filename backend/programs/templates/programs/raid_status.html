@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raid Status</title>
+</head>
+<body>
+    <h1>Raid Status</h1>
+    <h2>{{ raid.program.name }} Raid</h2>
+    <p>Start Time: {{ raid.start_time }}</p>
+    <p>End Time: {{ raid.end_time }}</p>
+    <p>Reward Cap: {{ raid.reward_cap }}</p>
+    <p>Status: {% if raid.active %}Active{% else %}Completed{% endif %}</p>
+
+    <h3>Participants</h3>
+    <ul>
+    {% for participant in participants %}
+        <li>{{ participant.user.username }} - Engagement Score: {{ participant.engagement_score }}</li>
+    {% empty %}
+        <li>No participants yet.</li>
+    {% endfor %}
+    </ul>
+</body>
+</html>

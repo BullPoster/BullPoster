@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BullPoster Email Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            color: #ffffff;
+        }
+        .email-container {
+            background-color: #111111;
+            padding: 20px;
+            border-radius: 5px;
+            border: 1px solid #2E9245;
+            box-shadow: 0 0 10px rgba(46, 146, 69, 0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .email-header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #2E9245;
+        }
+        .email-header h1 {
+            color: #2E9245;
+        }
+        .email-content {
+            padding: 20px 0;
+        }
+        .email-footer {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #2E9245;
+            font-size: 12px;
+            color: #888888;
+        }
+        .verification-code {
+            display: inline-block;
+            background-color: #2E9245;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="email-header">
+            <h1>BullPoster</h1>
+        </div>
+        <div class="email-content">
+            <h2>Email Verification</h2>
+            <p>Thank you for registering with BullPoster. To complete your registration and gain access to the presale, please verify your email address using the verification code below:</p>
+            <p><strong class="verification-code">{{ verification_code }}</strong></p>
+            <p>This code will expire in 30 minutes.</p>
+            <p>If you did not register for an account, please disregard this email.</p>
+            <p>Best regards,</p>
+            <p><strong>Christian Liz-Fonts</strong><br>
+            Founder & Acting CTO</p>
+        </div>
+        <div class="email-footer">
+            &copy; 2024 BullPoster. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>
