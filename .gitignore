@@ -8,6 +8,7 @@ backend/.env
 # Misc
 /Misc/
 
-# Include only the src directory within smart-contract
-!smart-contract/src/
+# Ignore everything in smart-contract except for smart-contract/src/
 smart-contract/*
+!smart-contract/src/
+!smart-contract/src/**/
