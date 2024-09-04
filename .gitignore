@@ -1,10 +1,21 @@
-# Backend
+# Ignore everything in the backend and frontend folders by default
+backend/*
+frontend/*
 backend/env/
 backend/*.pyc
 backend/__pycache__/
 backend/db.sqlite3
 backend/.env
 
+# But track specific files and folders
+!backend/bullposter_project/
+!backend/programs/
+!frontend/src/
+
+# Ignore specific subfolders you don't want to track
+backend/bullposter_project/**/__pycache__/
+backend/programs/**/__pycache__/
+backend/programs/migrations/
 # Misc
 /Misc/
 
@@ -12,3 +23,13 @@ backend/.env
 smart-contract/*
 !smart-contract/src/
 !smart-contract/src/**/
+
+# Ignore everything in smart-contract except for smart-contract/src/
+actions/*
+!actions/bullposter-actions/
+actions/bullposter-actions/*
+!actions/bullposter-actions/src/
+actions/bullposter-actions/src/*
+!actions/bullposter-actions/src/pages/
+!actions/bullposter-actions/src/pages/**/
+
