@@ -5,6 +5,7 @@ import {
   ActionGetResponse,
   ActionPostRequest,
 } from "@solana/actions";
+import { generateCardImage } from "../../../utils/generateImage";
 
 const headers = createActionHeaders({
   chainId: "mainnet", // or chainId: "devnet"
@@ -12,26 +13,30 @@ const headers = createActionHeaders({
 });
 
 export const GET = async (req: Request) => {
-  const { raidId } = req.query;
+  const url = new URL(req.url);
+  const raidId = url.searchParams.get("raidId");
 
   // Fetch raid data from Django backend
   const raidData = await fetch(
     `https://your-django-backend.com/api/raid/${raidId}`,
   ).then((res) => res.json());
 
+  // Generate raid card image
+  const raidCardImage = await generateCardImage("RaidCard", raidData);
+
   const payload: ActionGetResponse = {
     title: "Raid Card",
-    icon: "https://example.com/icon.png",
+    icon: raidCardImage,
     description: `Details of raid ${raidData.name}`,
     label: "View Raid",
     links: {
       actions: [
         {
-          href: `/api/actions/raid-card/${raidId}/join`,
+          href: `/api/actions/raid-card/join?raidId=${raidId}`,
           label: "Join Raid",
         },
         {
-          href: `/api/actions/raid-card/${raidId}/burn`,
+          href: `/api/actions/raid-card/burn?raidId=${raidId}`,
           label: "Burn Tokens",
           parameters: [
             {

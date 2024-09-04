@@ -5,7 +5,6 @@ import {
   ActionGetResponse,
   ActionPostRequest,
 } from "@solana/actions";
-import { generateLeaderboardImage } from "../../../utils/generateImage";
 
 const headers = createActionHeaders({
   chainId: "mainnet", // or chainId: "devnet"
@@ -21,14 +20,9 @@ export const GET = async (req: Request) => {
     `https://your-django-backend.com/api/competition/${competitionId}`,
   ).then((res) => res.json());
 
-  // Generate leaderboard image
-  const leaderboardImage = await generateLeaderboardImage(
-    competitionData.stats,
-  );
-
   const payload: ActionGetResponse = {
     title: "Leaderboard",
-    icon: leaderboardImage,
+    icon: "https://example.com/icon.png",
     description: `Leaderboard for competition ${competitionData.name}`,
     label: "View Leaderboard",
     links: {
