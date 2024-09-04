@@ -5,6 +5,7 @@ import {
   ActionGetResponse,
   ActionPostRequest,
 } from "@solana/actions";
+import { generateLeaderboardImage } from "../../../utils/generateImage";
 
 const headers = createActionHeaders({
   chainId: "mainnet", // or chainId: "devnet"
@@ -12,26 +13,32 @@ const headers = createActionHeaders({
 });
 
 export const GET = async (req: Request) => {
-  const { competitionId } = req.query;
+  const url = new URL(req.url);
+  const competitionId = url.searchParams.get("competitionId");
 
   // Fetch competition data from Django backend
   const competitionData = await fetch(
     `https://your-django-backend.com/api/competition/${competitionId}`,
   ).then((res) => res.json());
 
+  // Generate leaderboard image
+  const leaderboardImage = await generateLeaderboardImage(
+    competitionData.stats,
+  );
+
   const payload: ActionGetResponse = {
     title: "Leaderboard",
-    icon: "https://example.com/icon.png",
+    icon: leaderboardImage,
     description: `Leaderboard for competition ${competitionData.name}`,
     label: "View Leaderboard",
     links: {
       actions: [
         {
-          href: `/api/actions/leaderboard-blink/${competitionId}/overall-stats`,
+          href: `/api/actions/leaderboard-blink/overall-stats?competitionId=${competitionId}`,
           label: "Overall Stats",
         },
         {
-          href: `/api/actions/leaderboard-blink/${competitionId}/competition-stats`,
+          href: `/api/actions/leaderboard-blink/competition-stats?competitionId=${competitionId}`,
           label: "Competition Stats",
         },
       ],
