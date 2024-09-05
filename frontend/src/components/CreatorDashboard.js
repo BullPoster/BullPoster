@@ -1,6 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
-import { getCreatorDashboard, createProgram, updateProgram, deleteProgram, initiateRaid, sendPvpRequest, getPvpRequests, respondToPvpRequest } from '../utils/api';
+import React, { useState, useEffect } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import {
+  getCreatorDashboard,
+  createProgram,
+  updateProgram,
+  deleteProgram,
+  initiateRaid,
+  sendPvpRequest,
+  getPvpRequests,
+  respondToPvpRequest,
+} from "../utils/api";
+import BlinkCard from "./BlinkCard";
 
 function CreatorDashboard() {
   const { publicKey } = useWallet();
@@ -11,8 +21,8 @@ function CreatorDashboard() {
   const [isCreating, setIsCreating] = useState(false);
   const [editingProgram, setEditingProgram] = useState(null);
   const [initiatingRaid, setInitiatingRaid] = useState(null);
-  const [raidType, setRaidType] = useState('');
-  const [pvpOpponent, setPvpOpponent] = useState('');
+  const [raidType, setRaidType] = useState("");
+  const [pvpOpponent, setPvpOpponent] = useState("");
 
   useEffect(() => {
     if (publicKey) {
@@ -26,7 +36,7 @@ function CreatorDashboard() {
     try {
       const [dashboardData, pvpRequestsData] = await Promise.all([
         getCreatorDashboard(publicKey.toBase58()),
-        getPvpRequests()
+        getPvpRequests(),
       ]);
       setDashboardData(dashboardData);
       setPvpRequests(pvpRequestsData.pvp_requests);
@@ -66,30 +76,33 @@ function CreatorDashboard() {
     }
   };
 
-const handleInitiateRaid = async (programId) => {
-  if (raidType === 'pvp') {
-	if (!pvpOpponent) {
-	  setError('Please select a PVP opponent');
-	  return;
-	}
-	try {
-	  await sendPvpRequest({ challenger_program_id: programId, challenged_public_key: pvpOpponent });
-	  setError('PVP request sent successfully');
-	} catch (err) {
-	  setError(err.message);
-	}
-  } else {
-	try {
-	  await initiateRaid(programId, { competition_type: raidType });
-	  fetchDashboardData();
-	} catch (err) {
-	  setError(err.message);
-	}
-  }
-  setInitiatingRaid(null);
-  setRaidType('');
-  setPvpOpponent('');
-};
+  const handleInitiateRaid = async (programId) => {
+    if (raidType === "pvp") {
+      if (!pvpOpponent) {
+        setError("Please select a PVP opponent");
+        return;
+      }
+      try {
+        await sendPvpRequest({
+          challenger_program_id: programId,
+          challenged_public_key: pvpOpponent,
+        });
+        setError("PVP request sent successfully");
+      } catch (err) {
+        setError(err.message);
+      }
+    } else {
+      try {
+        await initiateRaid(programId, { competition_type: raidType });
+        fetchDashboardData();
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+    setInitiatingRaid(null);
+    setRaidType("");
+    setPvpOpponent("");
+  };
 
   const handleRespondToPvpRequest = async (requestId, response) => {
     try {
@@ -113,19 +126,23 @@ const handleInitiateRaid = async (programId) => {
       <h2 className="text-3xl font-bold mb-6">Creator Dashboard</h2>
 
       <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
-        <h3 className="text-xl font-semibold mb-4 text-green-400">Your Programs</h3>
+        <h3 className="text-xl font-semibold mb-4 text-green-400">
+          Your Programs
+        </h3>
         {dashboardData.programs.length === 0 ? (
           <p className="text-gray-300">You haven't created any programs yet.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {dashboardData.programs.map((program) => (
-              <ProgramCard 
-                key={program.id} 
-                program={program} 
+              <ProgramCard
+                key={program.id}
+                program={program}
                 onEdit={() => setEditingProgram(program)}
                 onDelete={() => handleDeleteProgram(program.id)}
                 onInitiateRaid={() => setInitiatingRaid(program)}
-                pvpRequests={pvpRequests.filter(req => req.challenged_program_id === program.id)}
+                pvpRequests={pvpRequests.filter(
+                  (req) => req.challenged_program_id === program.id,
+                )}
                 onRespondToPvpRequest={handleRespondToPvpRequest}
               />
             ))}
@@ -155,7 +172,9 @@ const handleInitiateRaid = async (programId) => {
 
       {initiatingRaid && (
         <div className="bg-gray-700 rounded-lg p-6 shadow-lg mt-8">
-          <h3 className="text-xl font-semibold mb-4 text-green-400">Initiate Raid</h3>
+          <h3 className="text-xl font-semibold mb-4 text-green-400">
+            Initiate Raid
+          </h3>
           <select
             value={raidType}
             onChange={(e) => setRaidType(e.target.value)}
@@ -168,7 +187,7 @@ const handleInitiateRaid = async (programId) => {
             <option value="24-program">24 Programs</option>
             <option value="pvp">PVP</option>
           </select>
-          {raidType === 'pvp' && (
+          {raidType === "pvp" && (
             <input
               type="text"
               value={pvpOpponent}
@@ -187,8 +206,8 @@ const handleInitiateRaid = async (programId) => {
           <button
             onClick={() => {
               setInitiatingRaid(null);
-              setRaidType('');
-              setPvpOpponent('');
+              setRaidType("");
+              setPvpOpponent("");
             }}
             className="ml-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition duration-300"
           >
@@ -200,13 +219,24 @@ const handleInitiateRaid = async (programId) => {
   );
 }
 
-function ProgramCard({ program, onEdit, onDelete, onInitiateRaid, pvpRequests, onRespondToPvpRequest }) {
+function ProgramCard({
+  program,
+  onEdit,
+  onDelete,
+  onInitiateRaid,
+  pvpRequests,
+  onRespondToPvpRequest,
+}) {
+  const actionApiUrl = `https://bullposter.xyz/actions/program-card-raid?programId=${program.id}`;
+
   return (
     <div className="bg-gray-700 rounded-lg p-4 shadow-lg">
       <h4 className="text-lg font-semibold text-white">{program.name}</h4>
       <p className="text-gray-300 text-sm mb-2">{program.description}</p>
       <p className="text-sm text-gray-400 mb-1">Size: {program.size}</p>
-      <p className="text-sm text-gray-400 mb-2">Rewards Distributed: {program.total_rewards_distributed} SOL</p>
+      <p className="text-sm text-gray-400 mb-2">
+        Rewards Distributed: {program.total_rewards_distributed} SOL
+      </p>
       <div className="flex justify-end space-x-2">
         <button
           onClick={onEdit}
@@ -225,24 +255,29 @@ function ProgramCard({ program, onEdit, onDelete, onInitiateRaid, pvpRequests, o
           className="bg-purple-500 hover:bg-purple-600 text-white font-bold py-1 px-2 rounded text-sm transition duration-300"
           disabled={program.is_conducting_raid}
         >
-          {program.is_conducting_raid ? 'Raid in Progress' : 'Initiate Raid'}
+          {program.is_conducting_raid ? "Raid in Progress" : "Initiate Raid"}
         </button>
       </div>
       {pvpRequests.length > 0 && (
         <div className="mt-4">
-          <h5 className="text-sm font-semibold text-green-400">Pending PVP Requests:</h5>
-          {pvpRequests.map(request => (
+          <h5 className="text-sm font-semibold text-green-400">
+            Pending PVP Requests:
+          </h5>
+          {pvpRequests.map((request) => (
             <div key={request.id} className="mt-2 p-2 bg-gray-600 rounded">
-              <p className="text-sm text-white">From: {request.challenger.slice(0, 4)}...{request.challenger.slice(-4)}</p>
+              <p className="text-sm text-white">
+                From: {request.challenger.slice(0, 4)}...
+                {request.challenger.slice(-4)}
+              </p>
               <div className="mt-2 flex space-x-2">
                 <button
-                  onClick={() => onRespondToPvpRequest(request.id, 'accept')}
+                  onClick={() => onRespondToPvpRequest(request.id, "accept")}
                   className="bg-green-500 hover:bg-green-600 text-white font-bold py-1 px-2 rounded text-xs transition duration-300"
                 >
                   Accept
                 </button>
                 <button
-                  onClick={() => onRespondToPvpRequest(request.id, 'reject')}
+                  onClick={() => onRespondToPvpRequest(request.id, "reject")}
                   className="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded text-xs transition duration-300"
                 >
                   Reject
@@ -252,12 +287,31 @@ function ProgramCard({ program, onEdit, onDelete, onInitiateRaid, pvpRequests, o
           ))}
         </div>
       )}
+      <div className="mt-4">
+        <BlinkCard actionApiUrl={actionApiUrl} />
+        <div className="mt-2">
+          <input
+            type="text"
+            value={actionApiUrl}
+            readOnly
+            className="w-full p-2 bg-gray-600 text-white rounded"
+          />
+          <button
+            onClick={() => navigator.clipboard.writeText(actionApiUrl)}
+            className="w-full mt-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+          >
+            Copy URL
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 function ProgramForm({ initialData, onSubmit, onCancel }) {
-  const [formData, setFormData] = useState(initialData || { name: '', description: '' });
+  const [formData, setFormData] = useState(
+    initialData || { name: "", description: "" },
+  );
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -271,11 +325,13 @@ function ProgramForm({ initialData, onSubmit, onCancel }) {
   return (
     <div className="bg-gray-700 rounded-lg p-6 shadow-lg mt-8">
       <h3 className="text-xl font-semibold mb-4 text-green-400">
-        {initialData ? 'Edit Program' : 'Create New Program'}
+        {initialData ? "Edit Program" : "Create New Program"}
       </h3>
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-300">Program Name</label>
+          <label className="block text-sm font-medium text-gray-300">
+            Program Name
+          </label>
           <input
             type="text"
             name="name"
@@ -286,7 +342,9 @@ function ProgramForm({ initialData, onSubmit, onCancel }) {
           />
         </div>
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-300">Description</label>
+          <label className="block text-sm font-medium text-gray-300">
+            Description
+          </label>
           <textarea
             name="description"
             value={formData.description}
@@ -308,7 +366,7 @@ function ProgramForm({ initialData, onSubmit, onCancel }) {
             type="submit"
             className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300"
           >
-            {initialData ? 'Update Program' : 'Create Program'}
+            {initialData ? "Update Program" : "Create Program"}
           </button>
         </div>
       </form>
