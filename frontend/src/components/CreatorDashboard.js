@@ -227,7 +227,7 @@ function ProgramCard({
   pvpRequests,
   onRespondToPvpRequest,
 }) {
-  const actionApiUrl = `https://bullposter.xyz/actions/program-card-raid?programId=${program.id}`;
+  const actionApiUrl = `https://bullposter.xyz/actions/program-card?programId=${program.id}`;
 
   return (
     <div className="bg-gray-700 rounded-lg p-4 shadow-lg">
@@ -313,13 +313,25 @@ function ProgramForm({ initialData, onSubmit, onCancel }) {
     initialData || { name: "", description: "" },
   );
 
+  const [profilePicture, setProfilePicture] = useState(null);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleFileChange = (e) => {
+    setProfilePicture(e.target.files[0]);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    const formDataToSubmit = new FormData();
+    formDataToSubmit.append("name", formData.name);
+    formDataToSubmit.append("description", formData.description);
+    if (profilePicture) {
+      formDataToSubmit.append("profile_picture", profilePicture);
+    }
+    onSubmit(formDataToSubmit);
   };
 
   return (
@@ -339,6 +351,17 @@ function ProgramForm({ initialData, onSubmit, onCancel }) {
             onChange={handleChange}
             className="mt-1 block w-full rounded-md bg-gray-600 border-gray-500 text-white"
             required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-300">
+            Profile Picture
+          </label>
+          <input
+            type="file"
+            name="profile_picture"
+            onChange={handleFileChange}
+            className="mt-1 block w-full text-white"
           />
         </div>
         <div className="mb-4">
