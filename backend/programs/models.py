@@ -31,6 +31,7 @@ class UserProfile(models.Model):
     token_holdings = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)
     has_presale_access = models.BooleanField(default=False)
     agreed_to_terms = models.BooleanField(default=False)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.username}'s profile"
@@ -73,7 +74,7 @@ class Keypair(models.Model):
 
     def __str__(self):
         return f"Keypair for {self.user.username}"
-    
+
     def set_private_key(self, private_key):
         fernet = Fernet(base64.urlsafe_b64encode(settings.SECRET_KEY.encode()[:32]))
         self.encrypted_private_key = fernet.encrypt(private_key.encode()).decode()
@@ -100,6 +101,7 @@ class Program(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     is_conducting_raid = models.BooleanField(default=False)
     completed_raids = models.IntegerField(default=0)
+    profile_picture = models.ImageField(upload_to='program_pictures/', null=True, blank=True)
 
     def __str__(self):
         return self.name

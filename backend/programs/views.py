@@ -264,9 +264,9 @@ def get_or_create_competitions():
         pending_comp = Competition.objects.filter(competition_type=comp_type, status='pending').first()
         if not pending_comp:
             pending_comp = Competition.objects.create(competition_type=comp_type, status='pending')
-        
+
         active_comp = Competition.objects.filter(competition_type=comp_type, status='active').first()
-        
+
         competitions.append({
             'id': pending_comp.id,
             'type': pending_comp.get_competition_type_display(),
@@ -276,7 +276,7 @@ def get_or_create_competitions():
             'start_time': None,
             'raids': []
         })
-        
+
         if active_comp:
             raids = Raid.objects.filter(competition=active_comp)
             competitions.append({
@@ -295,7 +295,7 @@ def get_or_create_competitions():
                     } for raid in raids
                 ]
             })
-    
+
     return competitions
 
 @require_http_methods(["GET"])
@@ -303,9 +303,9 @@ def get_or_create_competitions():
 def available_programs(request):
     user_profile = request.user.userprofile
     enrolled_program_ids = Enrollment.objects.filter(user=user_profile).values_list('program_id', flat=True)
-    
+
     available_programs = Program.objects.exclude(id__in=enrolled_program_ids).values('id', 'name', 'description', 'size')
-    
+
     return JsonResponse({
         'programs': list(available_programs)
     })
@@ -316,14 +316,14 @@ def available_programs(request):
 def create_program(request):
     data = json.loads(request.body)
     user_profile = request.user.userprofile
-    
+
     program = Program.objects.create(
         name=data['name'],
         description=data['description'],
         creator=user_profile,
         size=0  # Initialize size to 0
     )
-    
+
     return JsonResponse({
         'status': 'success',
         'program': {
@@ -342,11 +342,11 @@ def create_program(request):
 def update_program(request, program_id):
     data = json.loads(request.body)
     program = get_object_or_404(Program, id=program_id, creator=request.user.userprofile)
-    
+
     program.name = data.get('name', program.name)
     program.description = data.get('description', program.description)
     program.save()
-    
+
     return JsonResponse({
         'status': 'success',
         'program': {
@@ -365,7 +365,7 @@ def update_program(request, program_id):
 def delete_program(request, program_id):
     program = get_object_or_404(Program, id=program_id, creator=request.user.userprofile)
     program.delete()
-    
+
     return JsonResponse({
         'status': 'success',
         'message': 'Program deleted successfully'
@@ -551,20 +551,20 @@ def enroll_in_program(request):
 def update_engagement_score(request, participation_id):
     data = json.loads(request.body)
     participation = get_object_or_404(Participation, id=participation_id)
-    
+
     if participation.user != request.user.userprofile:
         return JsonResponse({'error': 'Unauthorized'}, status=403)
-    
+
     if participation.raid.competition.status != 'active':
         return JsonResponse({'error': 'Raid is not active'}, status=400)
-    
+
     new_score = data.get('engagement_score')
     if new_score is None:
         return JsonResponse({'error': 'Engagement score is required'}, status=400)
-    
+
     participation.engagement_score = new_score
     participation.save()
-    
+
     return JsonResponse({
         'status': 'success',
         'message': 'Engagement score updated successfully',
@@ -577,7 +577,7 @@ def distribute_rewards(competition):
         Participation.objects.filter(raid=raid).aggregate(Sum('engagement_score'))['engagement_score__sum'] or 0
         for raid in raids
     )
-    
+
     if total_engagement == 0:
         return  # No engagement, no rewards to distribute
 
@@ -612,7 +612,7 @@ def calculate_reward_cap(competition_type, program):
         '12-program': 4000,
         '24-program': 5000
     }.get(competition_type, 1000)
-    
+
     return min(base_cap, program.total_rewards_distributed * 0.1)
 
 @require_http_methods(["GET"])
@@ -620,7 +620,7 @@ def calculate_reward_cap(competition_type, program):
 def get_pvp_requests(request):
     user_profile = request.user.userprofile
     pvp_requests = PVPRequest.objects.filter(Q(challenger=user_profile) | Q(challenged=user_profile))
-    
+
     return JsonResponse({
         'pvp_requests': [
             {
@@ -640,24 +640,24 @@ def send_pvp_request(request):
     data = json.loads(request.body)
     challenger = request.user.userprofile
     challenged_public_key = data.get('challenged_public_key')
-    
+
     if not challenged_public_key:
         return JsonResponse({'error': 'Challenged user public key is required'}, status=400)
-    
+
     challenged = get_object_or_404(UserProfile, public_key=challenged_public_key)
-    
+
     if challenger == challenged:
         return JsonResponse({'error': 'You cannot challenge yourself'}, status=400)
-    
+
     pvp_request, created = PVPRequest.objects.get_or_create(
         challenger=challenger,
         challenged=challenged,
         defaults={'status': 'pending'}
     )
-    
+
     if not created:
         return JsonResponse({'error': 'PVP request already exists'}, status=400)
-    
+
     return JsonResponse({
         'status': 'success',
         'message': 'PVP request sent successfully',
@@ -671,30 +671,30 @@ def respond_to_pvp_request(request, request_id):
     pvp_request = get_object_or_404(PVPRequest, id=request_id)
     if pvp_request.challenged != request.user.userprofile:
         return JsonResponse({'error': 'Unauthorized'}, status=403)
-    
+
     data = json.loads(request.body)
     response = data.get('response')
-    
+
     if response not in ['accept', 'reject']:
         return JsonResponse({'error': 'Invalid response'}, status=400)
-    
+
     if response == 'accept':
         if pvp_request.challenger_program.is_conducting_raid or pvp_request.challenged_program.is_conducting_raid:
             return JsonResponse({'error': 'One of the programs is already in a raid'}, status=400)
-        
+
         pvp_request.status = 'accepted'
         pvp_request.save()
-        
+
         competition = Competition.objects.create(
             competition_type='pvp',
             status='active',
             start_time=timezone.now(),
             end_time=timezone.now() + timedelta(minutes=15)
         )
-        
+
         pvp_request.challenger_program.start_raid()
         pvp_request.challenged_program.start_raid()
-        
+
         Raid.objects.create(
             program=pvp_request.challenger_program,
             competition=competition,
@@ -708,7 +708,7 @@ def respond_to_pvp_request(request, request_id):
     else:
         pvp_request.status = 'rejected'
         pvp_request.save()
-    
+
     return JsonResponse({
         'status': 'success',
         'message': f'PVP request {pvp_request.status}',
@@ -724,7 +724,7 @@ def get_active_pvp_competitions(request):
         status='active',
         raid__program__creator=user_profile
     ).distinct()
-    
+
     return JsonResponse({
         'active_pvp_competitions': [
             {
@@ -741,3 +741,50 @@ def get_active_pvp_competitions(request):
             } for comp in active_pvp_competitions
         ]
     })
+
+def action_user_card(request):
+    user_id = request.GET.get('userId')
+    user_profile = get_object_or_404(UserProfile, id=user_id)
+    data = {
+        'username': user_profile.user.username,
+        'profilePicture': user_profile.profile_picture.url if user_profile.profile_picture else None,
+        'totalRewards': user_profile.total_rewards,
+        'participatedRaids': user_profile.participated_raids,
+        'engagementScore': user_profile.engagement_score,
+    }
+    return JsonResponse(data)
+
+def action_program_card(request):
+    program_id = request.GET.get('programId')
+    program = get_object_or_404(Program, id=program_id)
+    data = {
+        'programName': program.name,
+        'profilePicture': program.profile_picture.url if program.profile_picture else None,
+        'totalRewardsDistributed': program.total_rewards_distributed,
+        'size': program.size,
+    }
+    return JsonResponse(data)
+
+def action_leaderboard_card(request):
+    competition_id = request.GET.get('competitionId')
+    competition = get_object_or_404(Competition, id=competition_id)
+    stats = [
+        {'name': user.user.username, 'value': user.total_rewards}
+        for user in UserProfile.objects.order_by('-total_rewards')[:10]
+    ]
+    data = {
+        'name': competition.name,
+        'stats': stats,
+    }
+    return JsonResponse(data)
+
+def action_raid_card(request):
+    raid_id = request.GET.get('raidId')
+    raid = get_object_or_404(Raid, id=raid_id)
+    data = {
+        'programName': raid.program.name,
+        'profilePicture': raid.program.profile_picture.url if raid.program.profile_picture else None,
+        'rewardCap': raid.reward_cap,
+        'participantsCount': raid.participants_count,
+    }
+    return JsonResponse(data)

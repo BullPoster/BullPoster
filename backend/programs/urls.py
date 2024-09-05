@@ -22,6 +22,10 @@ urlpatterns = [
     path('presale-transactions/', views.get_presale_transactions, name='get_presale_transactions'),
     path('update-profile/', views.update_user_profile, name='update_user_profile'),
     path('grant-presale-access/', views.grant_presale_access, name='grant_presale_access'),
-    path('user-data/', views.get_user_data, name='get_user_data'),
+    path('api/user-data/', views.get_user_data, name='get_user_data'),
     path('verify-email/', views.verify_email, name='verify_email'),
+    path('user-card/', views.action_user_card, name='action_user_card'),
+    path('program-card/', views.action_program_card, name='action_program_card'),
+    path('leaderboard-card/', views.action_leaderboard_card, name='action_leaderboard_card'),
+    path('raid-card/', views.action_raid_card, name='action_raid_card'),
 ]
