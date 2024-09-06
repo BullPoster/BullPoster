@@ -18,7 +18,7 @@ export const GET = async (req: Request) => {
 
   // Fetch user data from Django backend
   const userData = await fetch(
-    `https://your-django-backend.com/api/user/${userId}`,
+    `https://bullposter.xyz/api/user-card/${userId}`,
   ).then((res) => res.json());
 
   // Generate user card image

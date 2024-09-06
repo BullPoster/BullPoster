@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getUserData, updateUserProfile } from "../utils/api";
+import BlinkCard from "./BlinkCard";
 
 const Profile = () => {
   const [userData, setUserData] = useState(null);
@@ -63,11 +64,17 @@ const Profile = () => {
     return <div className="text-center text-red-500">{error}</div>;
   }
 
+  const userCardApiUrl = `https://bullposter.xyz/actions/user-card?userId=${userData.id}`;
+
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
       <h2 className="text-2xl font-bold mb-4 text-green-400">
         Profile Settings
       </h2>
+      <div className="mt-8">
+        <h3 className="text-xl font-semibold mb-4 text-green-400">User Card</h3>
+        <BlinkCard actionApiUrl={userCardApiUrl} />
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label
