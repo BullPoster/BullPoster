@@ -151,10 +151,15 @@ def get_presale_transactions(request):
 @require_http_methods(["POST"])
 def update_user_profile(request):
     data = json.loads(request.body)
-    user_profile = request.user.userprofile
-    user_profile.email = data.get('email', user_profile.email)
-    user_profile.twitter_handle = data.get('twitter', user_profile.twitter_handle)
+    user = request.user
+    user_profile = UserProfile.objects.get_or_create(user=user)
+    if data.get('twitter'):
+        user_profile.twitter_handle = data.get('twitter')
+    if data.get('dob'):
+        user_profile.date_of_birth = data.get('dob')
     user_profile.date_of_birth = data.get('dob', user_profile.date_of_birth)
+    if 'profile_picture' in request.FILES:
+        user_profile.profile_picture = request.FILES['profile_picture']
     user_profile.save()
     return JsonResponse({'status': 'success'})
 
@@ -341,10 +346,15 @@ def create_program(request):
 @csrf_exempt
 def update_program(request, program_id):
     data = json.loads(request.body)
-    program = get_object_or_404(Program, id=program_id, creator=request.user.userprofile)
-
-    program.name = data.get('name', program.name)
-    program.description = data.get('description', program.description)
+    user = request.user
+    user_profile, _ = UserProfile.objects.get_or_create(user=user)
+    program, _ = Program.objects.get_or_create(creator=user_profile)
+    if data.get('name'):
+        program.name = data['name']
+    if data.get('description'):
+        program.description = data['description']
+    if 'profile_picture' in request.FILES:
+        program.profile_picture = request.FILES['profile_picture']
     program.save()
 
     return JsonResponse({
