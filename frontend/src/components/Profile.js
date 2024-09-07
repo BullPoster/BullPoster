@@ -65,7 +65,7 @@ const Profile = () => {
   }
 
   const userCardApiUrl = `https://bullposter.xyz/actions/user-card?userId=${userData.id}`;
-
+  console.log("User Card API URL:", userCardApiUrl); // Add logging
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
       <h2 className="text-2xl font-bold mb-4 text-green-400">

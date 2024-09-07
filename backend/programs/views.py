@@ -8,6 +8,10 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import UserProfile, Raid, Participation, Competition, Program, Enrollment, PVPRequest, PresaleData,  PreSaleTransaction, Keypair
 from datetime import timedelta
 from solders.keypair import Keypair as SolanaKeypair
+from PIL import Image, ImageDraw, ImageFont
+import requests
+import io
+import base64
 import base58
 import json
 import logging
@@ -250,6 +254,7 @@ def get_user_data(request):
                     logger.warning(f"Keypair not found for user {request.user.id} with presale access")
 
             return JsonResponse({
+                'id': user_profile.id,  # Include the user ID here
                 'email': user_profile.email,
                 'presale_public_key': presale_public_key,  # This will be null if keypair doesn't exist
                 'presaleTokens': str(user_profile.token_holdings) if user_profile.has_presale_access else "0",
@@ -752,8 +757,62 @@ def get_active_pvp_competitions(request):
         ]
     })
 
+
+def get_font(size):
+    # This will work if Arial is installed on your system
+    return ImageFont.truetype("arial.ttf", size)
+
+def generate_image(data, card_type):
+    WIDTH, HEIGHT = 800, 400
+    image = Image.new('RGB', (WIDTH, HEIGHT), '#111111')
+    draw = ImageDraw.Draw(image)
+
+    # Draw border
+    border_color = "#2E9245"
+    draw.rectangle([0, 0, WIDTH-1, HEIGHT-1], outline=border_color, width=5)
+
+    if card_type in ['UserCard', 'RaidCard', 'ProgramCard'] and data.get('profilePicture'):
+        profile_picture = Image.open(io.BytesIO(requests.get(data['profilePicture']).content))
+        profile_picture = profile_picture.resize((100, 100))
+        image.paste(profile_picture, (10, 10))
+
+    draw.text((WIDTH // 2, 50), card_type.replace('Card', ' Card'), font=get_font(30), fill="#2E9245", anchor="mm")
+
+    if card_type == 'UserCard':
+      draw.text((50, 120), f"Username: {data.get('username', '')}", font=get_font(20), fill="#ffffff")
+      draw.text((50, 150), f"Total Rewards: {data.get('totalRewards', '')}", font=get_font(20), fill="#ffffff")
+      draw.text((50, 180), f"Participated Raids: {data.get('participatedRaids', '')}", font=get_font(20), fill="#ffffff")
+      draw.text((50, 210), f"Engagement Score: {data.get('engagementScore', '')}", font=get_font(20), fill="#ffffff")
+
+    if card_type == 'RaidCard':
+      draw.text((50, 120), f"Program: {data.get('programName', '')}", font=get_font(20), fill="#ffffff")
+      draw.text((50, 150), f"Reward Cap: {data.get('rewardCap', '')}", font=get_font(20), fill="#ffffff")
+      draw.text((50, 180), f"Participant Count: {data.get('participantCount', '')}", font=get_font(20), fill="#ffffff")
+
+    if card_type == 'ProgramCard':
+      draw.text((50, 120), f"Program: {data.get('programName', '')}", font=get_font(20), fill="#ffffff")
+      draw.text((50, 150), f"Total Rewards Distributed: {data.get('totalRewardsDistributed', '')}", font=get_font(20), fill="#ffffff")
+      draw.text((50, 180), f"Program Size: {data.get('size', '')}", font=get_font(20), fill="#ffffff")
+
+    if card_type == 'LeaderboardCard':
+        y_position = 120
+        for index, stat in enumerate(data.get('stats', [])):
+            draw.text((50, y_position), f"{index + 1}. {stat['name']}: {stat['value']}", font=get_font(20), fill="#ffffff")
+            y_position += 30
+
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+    return img_str
+
 def action_user_card(request):
     user_id = request.GET.get('userId')
+    logger.debug(f"Received userId: {user_id}")  # Add logging
+    if not user_id:
+        logger.error("User ID is required")
+        return JsonResponse({'error': 'User ID is required'}, status=400)
+
     user_profile = get_object_or_404(UserProfile, id=user_id)
     data = {
         'username': user_profile.user.username,
@@ -762,10 +821,18 @@ def action_user_card(request):
         'participatedRaids': user_profile.participated_raids,
         'engagementScore': user_profile.engagement_score,
     }
+    logger.debug(f"User data: {data}")  # Add logging
+    card_image_base64 = generate_image(data, 'UserCard')
+    data['cardImage'] = card_image_base64
     return JsonResponse(data)
 
 def action_program_card(request):
     program_id = request.GET.get('programId')
+    logger.debug(f"Received programId: {program_id}")  # Add logging
+    if not program_id:
+        logger.error("Program ID is required")
+        return JsonResponse({'error': 'Program ID is required'}, status=400)
+
     program = get_object_or_404(Program, id=program_id)
     data = {
         'programName': program.name,
@@ -773,10 +840,18 @@ def action_program_card(request):
         'totalRewardsDistributed': program.total_rewards_distributed,
         'size': program.size,
     }
+    logger.debug(f"Program data: {data}")  # Add logging
+    card_image_base64 = generate_image(data, 'ProgramCard')
+    data['cardImage'] = card_image_base64
     return JsonResponse(data)
 
 def action_leaderboard_card(request):
     competition_id = request.GET.get('competitionId')
+    logger.debug(f"Received competitionId: {competition_id}")  # Add logging
+    if not competition_id:
+        logger.error("Competition ID is required")
+        return JsonResponse({'error': 'Competition ID is required'}, status=400)
+
     competition = get_object_or_404(Competition, id=competition_id)
     stats = [
         {'name': user.user.username, 'value': user.total_rewards}
@@ -786,10 +861,18 @@ def action_leaderboard_card(request):
         'name': competition.name,
         'stats': stats,
     }
+    logger.debug(f"Leaderboard data: {data}")  # Add logging
+    card_image_base64 = generate_image(data, 'LeaderboardCard')
+    data['cardImage'] = card_image_base64
     return JsonResponse(data)
 
 def action_raid_card(request):
     raid_id = request.GET.get('raidId')
+    logger.debug(f"Received raidId: {raid_id}")  # Add logging
+    if not raid_id:
+        logger.error("Raid ID is required")
+        return JsonResponse({'error': 'Raid ID is required'}, status=400)
+
     raid = get_object_or_404(Raid, id=raid_id)
     data = {
         'programName': raid.program.name,
@@ -797,4 +880,7 @@ def action_raid_card(request):
         'rewardCap': raid.reward_cap,
         'participantsCount': raid.participants_count,
     }
+    logger.debug(f"Raid data: {data}")  # Add logging
+    card_image_base64 = generate_image(data, 'RaidCard')
+    data['cardImage'] = card_image_base64
     return JsonResponse(data)

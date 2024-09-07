@@ -26,11 +26,9 @@ smart-contract/*
 
 # Ignore everything in smart-contract except for smart-contract/src/
 actions/*
-!actions/bullposter-actions/
-actions/bullposter-actions/*
-!actions/bullposter-actions/src/
-actions/bullposter-actions/src/*
-!actions/bullposter-actions/src/pages/
-!actions/bullposter-actions/src/pages/**/
-!actions/bullposter-actions/src/utils/
-!actions/bullposter-actions/src/utils/**/
+!actions/src/
+actions/src/*
+!actions/src/pages/
+!actions/src/pages/**/
+!actions/src/utils/
+!actions/src/utils/**/
