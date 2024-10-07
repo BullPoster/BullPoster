@@ -22,23 +22,24 @@ Blinks x Actions by Dialect integration enhances user interaction and engagement
 
 - **User Cards**: 
   - **User Profile**: Displays user info and statistics.
-    - **Live Raid Action**: Displays the Raid Card of a ongoing raid in which the program is participating in ( On displays if a program is currently participating in a raid).  
-    - **View Past Raids Action**: Lists historical raids the user has participated in.
-    - **Enrolled Programs Action**: Shows all programs the user is currently enrolled in.
+    - **Live Raid Action**: Displays the Raid Card of a ongoing raid in which the program is participating in ( On displays if a program is currently participating in a raid).  ( Coming Soon )
+    - **View Past Raids Action**: Lists historical raids the user has participated in. ( Coming Soon )
+    - **Enrolled Programs Action**: Shows all programs the user is currently enrolled in. ( Coming Soon )
 
-- **Leaderboard Blink**: 
+- **Leaderboard Blink**: ( Coming Soon )
   - **Overall Stats**: Highlights top users and programs based on various metrics.
   - **Competition Stats**: Provides detailed rankings for specific competitions.
 
-- **Raid Card**:
+- **Raid Card**: ( Coming Soon )
   - **Competition Stats**: Displays current stats of raid and participant rankings for ongoing competition.
     - **Join Action**: Enables users to join the program and participate in raids.
     - **Burn Action**: Allows users to burn tokens directly from the Blinks interface during live raids, integrating with the competitive token burning mechanism.
 
 - **Program Card Raid**:
   - **Program Details**: Displays information about the program and raid stats.
-    - **Live Raid Action**: Displays the Raid Card of a ongoing raid in which the program is participating in ( On displays if a program is currently participating in a raid).  
-    - **Past Raids**: Shows previous raids related to the program.
+    - **Live Raid Action**: Displays the Raid Card of a ongoing raid in which the program is participating in ( On displays if a program is currently participating in a raid). ( Coming Soon ) 
+    - **Past Raids**: Shows previous raids related to the program.( Coming Soon )
+    - **Enrolled Programs Action**: Enables users to enroll in a Raid Program. 
 
 ## Smart Contract (Native Rust)
 
@@ -61,7 +62,7 @@ The smart contracts for BullPoster are developed using Rust and are deployed on 
     - Token transfer to stake vault
     - Updating staked amounts
 
-## Backend
+## Django Backend
 
 ### Overview
 
@@ -87,8 +88,11 @@ The backend of BullPoster is built using Django and is responsible for managing 
 - **Raid Management**:
   - Facilitates the initiation and management of raids.
   - Handles competition types, reward distribution, and leaderboard updates.
+ 
+- **Image Generation**:
+  - Handles Image Generation for Blinks x Actions Cards.
 
-## Frontend
+## ReactJS Frontend
 
 ### Overview
 
@@ -121,35 +125,59 @@ The frontend of BullPoster is developed using React and provides an intuitive in
    cd bullposter
    ```
 
-2. **Backend Setup**
+2. **Blinks x Actions Integration Setup with Next.js**
+   - Install Node.js and npm
+   - Create a Next.js Project
+      ```bash
+      npx create-next-app@latest actions
+      ```
+    - Install Required Dependencies
+    - Copy the contents from the App folder within the GitHub repository to the App folder in your Next.js project
+    - Build your Next.js project
+    ```bash
+    npm run build
+    ```
+    
+2. **Django Backend Setup**
    - Create a virtual environment and install dependencies:
      ```bash
      python -m venv env
      source env/bin/activate
-     pip install -r requirements.txt
      ```
+     
    - Run database migrations:
      ```bash
      python manage.py migrate
      ```
 
-3. **Frontend Setup**
-   - Install frontend dependencies:
-     ```bash
-     cd frontend
-     npm install
-     ```
+3. **ReactJS Frontend Setup**
+   - Create a new ReactJS project
+   ```bash
+   npx create-react-app frontend
+   ```
+   - Install frontend dependencies
+   - Build the frontend
+   ```bash
+   npm run build
+   ```
 
-4. **Smart Contracts**
+5. **Rust Smart Contracts**
+   - Start a new native Rust project for the smart contracts
+     ```bash
+     cargo new smart-contract --lib
+     ```
    - Build and deploy Rust smart contracts:
      ```bash
-     cd rust_contracts
+     cd smart-contract
      cargo build-bpf
      ```
 
-5. **Start Development Servers**
-   - Backend: `python manage.py runserver`
-   - Frontend: `npm start`
+7. **Start Development Servers**
+   - Blinks x Actions Next.js: `npm start`
+   - Django Backend: `python manage.py runserver`
+   - ReactJS Frontend: `npm start`
+   - Rust Smart Contract: `solana program deploy /target/deploy/smart-contract.so`
+
 
 ## Contributing
 
@@ -158,6 +186,3 @@ We welcome contributions to BullPoster! Please see our [Contributing Guidelines]
 ## License
 
 BullPoster is released under the [MIT License](LICENSE).
-```
-
-This `README.md` provides a structured overview of BullPoster, including detailed technical features and specifications for Blinks x Actions by Dialect integration, Rust smart contracts, backend, and frontend components. Let me know if there are any other details you'd like to include or adjust!
