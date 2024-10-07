@@ -3,6 +3,15 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { Buffer } from 'buffer';
+import process from 'process';
+
+window.Buffer = Buffer;
+window.process = process;
+
+// Polyfill process and Buffer
+if (!window.process) window.process = {}
+if (!window.process.env) window.process.env = {}
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

@@ -74,9 +74,10 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "https://bullposter.xyz",
+    "http://localhost:3000",
 ]
 
-CSRF_TRUSTED_ORIGINS = ['https://bullposter.xyz']
+CSRF_TRUSTED_ORIGINS = ['https://bullposter.xyz', "http://localhost:3000"]
 
 ROOT_URLCONF = 'bullposter_project.urls'
 
@@ -187,7 +188,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

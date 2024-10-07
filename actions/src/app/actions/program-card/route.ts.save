@@ -1,0 +1,61 @@
+import { deserialize } from "borsh";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { NextResponse } from 'next/server';
+import { createActionHeaders, ActionGetResponse } from "@solana/actions";
+
+const headers = createActionHeaders({
+  chainId: "devnet",
+  actionVersion: "2.2.1",
+});
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, Content-Encoding, Accept-Encoding",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { status: 204, headers: corsHeaders });
+}
+
+const connection = new Connection("https://api.devnet.solana.com");
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const programId = searchParams.get('programId');
+
+  if (!programId) {
+    return NextResponse.json({ error: "programId is required" }, { status: 400, headers: { ...headers, ...corsHeaders } });
+  }
+
+  try {
+    const response = await fetch(`https://bullposter.xyz/api/program-card/${programId}`, {
+      headers: { "Accept-Encoding": "gzip, deflate, br" },
+    });
+
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+    const programData = await response.json();
+
+    const payload: ActionGetResponse = {
+      title: "Program Card",
+      icon: programData.cardImage,
+      description: `Details of program ${programData.name}`,
+      label: "View Program",
+      links: {
+        actions: [
+          { href: `/actions/program-card-raid/live-raid?programId=${programId}`, label: "Live Raid" },
+          { href: `/actions/program-card-raid/past-raids?programId=${programId}`, label: "Past Raids" },
+        ],
+      },
+    };
+
+    return NextResponse.json(payload, { 
+      status: 200, 
+      headers: { ...headers, ...corsHeaders, "Content-Encoding": "gzip" } 
+    });
+  } catch (error) {
+    console.error("Error fetching program data:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500, headers: { ...headers, ...corsHeaders } });
+  }
+}

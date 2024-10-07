@@ -10,16 +10,22 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { joinRaid } from "../utils/api";
 import {
-  getUserDashboard,
-  joinRaid,
-  updateEngagementScore,
-} from "../utils/api";
+  getUserCard,
+  getProgramState,
+  getProgramRaidProgramsState,
+  getProgramRaidsState,
+  getProgramCompetitionsState,
+  getLeaderboard,
+  fetchRaidProgramData,
+  fetchRaidData,
+} from "../utils/solanaUtils";
 import ProgramSearchEnrollment from "./ProgramSearchEnrollment";
 import BlinkCard from "./BlinkCard";
 
 function UserDashboard() {
-  const { publicKey } = useWallet();
+  const { publicKey, signTransaction } = useWallet();
   const [dashboardData, setDashboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,16 +37,129 @@ function UserDashboard() {
     }
   }, [publicKey]);
 
+  const calculateUserRewards = async (userCard) => {
+    let totalRewards = 0;
+    const earningsHistory = [];
+    const enrolledProgramIds = userCard.enrolled_programs
+      .split(",")
+      .filter(Boolean);
+
+    for (const programId of enrolledProgramIds) {
+      const raidProgramData = await fetchRaidProgramData(programId);
+      const raidIds = raidProgramData.raids.split(",").filter(Boolean);
+
+      for (const raidId of raidIds) {
+        const raidData = await fetchRaidData(raidId);
+        const distributedRewards = JSON.parse(raidData.distributed_rewards);
+
+        if (distributedRewards[publicKey.toBase58()]) {
+          const rewardAmount = parseFloat(
+            distributedRewards[publicKey.toBase58()],
+          );
+          totalRewards += rewardAmount;
+
+          earningsHistory.push({
+            date: new Date(raidData.end_time * 1000).toISOString(),
+            earnings: rewardAmount,
+            raidId: raidId,
+            programId: programId,
+          });
+        }
+      }
+    }
+
+    return {
+      totalRewards,
+      earningsHistory: earningsHistory.sort(
+        (a, b) => new Date(b.date) - new Date(a.date),
+      ),
+    };
+  };
+
   const fetchUserData = async () => {
-    setIsLoading(true);
-    setError(null);
     try {
-      const data = await getUserDashboard(publicKey.toBase58());
-      setDashboardData(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
+      const userCard = await getUserCard(publicKey);
+      console.log("Raw userCard data:", userCard);
+      const programState = await getProgramState();
+      const raidProgramsState = await getProgramRaidProgramsState();
+      const raidsState = await getProgramRaidsState();
+      const competitionsState = await getProgramCompetitionsState();
+      const leaderboardState = await getLeaderboard();
+      // Parse enrolled program IDs
+      const enrolledProgramIds = userCard.enrolled_programs
+        ? userCard.enrolled_programs.split(",").filter(Boolean)
+        : [];
+
+      // Parse raid programs
+      const raidPrograms = raidProgramsState.raid_program_pubkeys
+        ? raidProgramsState.raid_program_pubkeys.split(",").filter(Boolean)
+        : [];
+
+      // Determine available programs
+      const availablePrograms = raidPrograms.filter(
+        (programId) => !enrolledProgramIds.includes(programId),
+      );
+
+      // Calculate rewards and earnings history
+      const { totalRewards, earningsHistory } =
+        await calculateUserRewards(userCard);
+
+      // Parse raids
+      const raids = raidsState.raid_pubkeys
+        ? raidsState.raid_pubkeys.split(",").filter(Boolean)
+        : [];
+
+      // Parse competitions
+      const competitions = competitionsState.competition_pubkeys
+        ? competitionsState.competition_pubkeys.split(",").filter(Boolean)
+        : [];
+
+      // Parse leaderboard data
+      const parsedLeaderboard = leaderboardState.leaderboard_data
+        ? JSON.parse(leaderboardState.leaderboard_data)
+        : { users: [], programs: [] };
+
+      setDashboardData({
+        user: {
+          ...userCard,
+          totalRewards,
+        },
+        raidHistory: earningsHistory,
+        raids,
+        competitions,
+        leaderboard: parsedLeaderboard,
+        earningsHistory,
+        raidPrograms,
+        enrolled_programs: enrolledProgramIds,
+        availablePrograms,
+      });
+
+      // Add these console.log statements
+      console.log("User data:", userCard);
+      console.log("Total Rewards:", totalRewards);
+      console.log("Raid history:", earningsHistory);
+      console.log("Raids:", raids);
+      console.log("Competitions:", competitions);
+      console.log("Leaderboard:", parsedLeaderboard);
+      console.log("Earnings history:", earningsHistory);
+      console.log("Enrolled programs:", enrolledProgramIds);
+      console.log("Available programs:", availablePrograms);
+
       setIsLoading(false);
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      setError("Failed to fetch user data");
+      setIsLoading(false);
+    }
+  };
+
+  const handleEnrollmentComplete = async (programId) => {
+    try {
+      await fetchUserData(); // Refresh data after successful enrollment
+      setShowEnrollment(false);
+    } catch (err) {
+      console.error("Error after enrolling in program:", err);
+      setError(err.message);
     }
   };
 
@@ -51,22 +170,6 @@ function UserDashboard() {
     } catch (err) {
       setError(err.message);
     }
-  };
-
-  const handleUpdateEngagementScore = async (participationId, newScore) => {
-    try {
-      await updateEngagementScore(participationId, {
-        engagement_score: newScore,
-      });
-      fetchUserData(); // Refresh dashboard data
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleEnrollmentComplete = () => {
-    fetchUserData(); // Refresh dashboard data after successful enrollment
-    setShowEnrollment(false);
   };
 
   if (isLoading) {
@@ -81,30 +184,132 @@ function UserDashboard() {
     return <div className="text-center text-red-500">Error: {error}</div>;
   }
 
-  return (
-    <div className="space-y-8">
+  let overallPerformanceComponent,
+    earningsChartComponent,
+    userLeaderboardComponent,
+    programLeaderboardComponent,
+    enrolledProgramsComponent,
+    programSearchEnrollmentComponent,
+    raidCompetitionsSectionComponent,
+    raidsSectionComponent;
+
+  try {
+    console.log("Rendering OverallPerformance with:", dashboardData.user);
+    overallPerformanceComponent = (
       <OverallPerformance user={dashboardData.user} />
+    );
+  } catch (error) {
+    console.error("Error in OverallPerformance:", error);
+    overallPerformanceComponent = <div>Error rendering OverallPerformance</div>;
+  }
+
+  try {
+    console.log("Rendering EarningsChart with:", dashboardData.earningsHistory);
+    earningsChartComponent = (
       <EarningsChart earningsHistory={dashboardData.earningsHistory} />
-      <UserLeaderboard leaderboard={dashboardData.userLeaderboard} />
-      <ProgramLeaderboard leaderboard={dashboardData.programLeaderboard} />
+    );
+  } catch (error) {
+    console.error("Error in EarningsChart:", error);
+    earningsChartComponent = <div>Error rendering EarningsChart</div>;
+  }
+
+  try {
+    console.log(
+      "Rendering UserLeaderboard with:",
+      dashboardData.leaderboard.users,
+    );
+    userLeaderboardComponent = (
+      <UserLeaderboard leaderboard={dashboardData.leaderboard.users} />
+    );
+  } catch (error) {
+    console.error("Error in UserLeaderboard:", error);
+    userLeaderboardComponent = <div>Error rendering UserLeaderboard</div>;
+  }
+
+  try {
+    console.log(
+      "Rendering ProgramLeaderboard with:",
+      dashboardData.leaderboard.programs,
+    );
+    programLeaderboardComponent = (
+      <ProgramLeaderboard leaderboard={dashboardData.leaderboard.programs} />
+    );
+  } catch (error) {
+    console.error("Error in ProgramLeaderboard:", error);
+    programLeaderboardComponent = <div>Error rendering ProgramLeaderboard</div>;
+  }
+
+  try {
+    console.log("Rendering EnrolledPrograms with:", {
+      enrolled_programs: dashboardData.enrolled_programs,
+      availablePrograms: dashboardData.availablePrograms,
+    });
+    enrolledProgramsComponent = (
       <EnrolledPrograms
         programs={dashboardData.enrolled_programs}
+        allPrograms={dashboardData.availablePrograms}
         onEnrollClick={() => setShowEnrollment(true)}
       />
-      {showEnrollment && (
+    );
+  } catch (error) {
+    console.error("Error in EnrolledPrograms:", error);
+    enrolledProgramsComponent = <div>Error rendering EnrolledPrograms</div>;
+  }
+
+  if (showEnrollment) {
+    try {
+      programSearchEnrollmentComponent = (
         <ProgramSearchEnrollment
+          availablePrograms={dashboardData.availablePrograms}
           onEnrollmentComplete={handleEnrollmentComplete}
         />
-      )}
+      );
+    } catch (error) {
+      console.error("Error in ProgramSearchEnrollment:", error);
+      programSearchEnrollmentComponent = (
+        <div>Error rendering ProgramSearchEnrollment</div>
+      );
+    }
+  }
+
+  try {
+    console.log(
+      "Rendering RaidCompetitionsSection with:",
+      dashboardData.competitions,
+    );
+    raidCompetitionsSectionComponent = (
       <RaidCompetitionsSection
         competitions={dashboardData.competitions}
         onJoinRaid={handleJoinRaid}
       />
-      <RaidsSection
-        raids={dashboardData.raids}
-        onJoinRaid={handleJoinRaid}
-        onUpdateEngagementScore={handleUpdateEngagementScore}
-      />
+    );
+  } catch (error) {
+    console.error("Error in RaidCompetitionsSection:", error);
+    raidCompetitionsSectionComponent = (
+      <div>Error rendering RaidCompetitionsSection</div>
+    );
+  }
+
+  try {
+    console.log("Rendering RaidsSection with:", dashboardData.raids);
+    raidsSectionComponent = (
+      <RaidsSection raids={dashboardData.raids} onJoinRaid={handleJoinRaid} />
+    );
+  } catch (error) {
+    console.error("Error in RaidsSection:", error);
+    raidsSectionComponent = <div>Error rendering RaidsSection</div>;
+  }
+
+  return (
+    <div className="space-y-8">
+      {overallPerformanceComponent}
+      {earningsChartComponent}
+      {userLeaderboardComponent}
+      {programLeaderboardComponent}
+      {enrolledProgramsComponent}
+      {programSearchEnrollmentComponent}
+      {raidCompetitionsSectionComponent}
+      {raidsSectionComponent}
     </div>
   );
 }
@@ -118,19 +323,19 @@ function OverallPerformance({ user }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <PerformanceCard
           title="Total Rewards"
-          value={user.total_rewards}
+          value={user.totalRewards || 0}
           unit="SOL"
         />
         <PerformanceCard
           title="Participated Raids"
-          value={user.participated_raids}
+          value={user.participated_raids || 0}
         />
-        <PerformanceCard title="Raid Ranking" value={user.raid_ranking} />
+        <PerformanceCard title="Raid Ranking" value={user.raid_ranking || 0} />
         <PerformanceCard
           title="Engagement Score"
-          value={user.engagement_score}
+          value={user.engagement_score || 0}
         />
-        <PerformanceCard title="Streaks" value={user.streaks} />
+        <PerformanceCard title="Streaks" value={user.streaks || 0} />
       </div>
     </div>
   );
@@ -148,13 +353,29 @@ function PerformanceCard({ title, value, unit }) {
 }
 
 function EarningsChart({ earningsHistory }) {
+  if (!earningsHistory || earningsHistory.length === 0) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+        <h3 className="text-xl font-semibold mb-4 text-green-400">
+          Earnings Over Time
+        </h3>
+        <p className="text-gray-300">No earnings data available yet.</p>
+      </div>
+    );
+  }
+
+  const chartData = earningsHistory.map((entry) => ({
+    date: new Date(entry.date).toLocaleDateString(),
+    earnings: entry.earnings,
+  }));
+
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
       <h3 className="text-xl font-semibold mb-4 text-green-400">
         Earnings Over Time
       </h3>
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={earningsHistory}>
+        <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="date" />
           <YAxis />
@@ -173,6 +394,17 @@ function EarningsChart({ earningsHistory }) {
 }
 
 function UserLeaderboard({ leaderboard }) {
+  if (!leaderboard || leaderboard.length === 0) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+        <h3 className="text-xl font-semibold mb-4 text-green-400">
+          User Leaderboard
+        </h3>
+        <p className="text-gray-300">No leaderboard data available yet.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
       <h3 className="text-xl font-semibold mb-4 text-green-400">
@@ -212,12 +444,14 @@ function UserLeaderboard({ leaderboard }) {
                     : "Unknown"}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {parseFloat(user.total_rewards).toFixed(2)} SOL
+                  {parseFloat(user.total_rewards || 0).toFixed(2)} SOL
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {parseFloat(user.engagement_score).toFixed(2)}
+                  {parseFloat(user.engagement_score || 0).toFixed(2)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">{user.streaks}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {user.streaks || 0}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -228,6 +462,17 @@ function UserLeaderboard({ leaderboard }) {
 }
 
 function ProgramLeaderboard({ leaderboard }) {
+  if (!leaderboard || leaderboard.length === 0) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+        <h3 className="text-xl font-semibold mb-4 text-green-400">
+          Program Leaderboard
+        </h3>
+        <p className="text-gray-300">No leaderboard data available yet.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
       <h3 className="text-xl font-semibold mb-4 text-green-400">
@@ -263,13 +508,16 @@ function ProgramLeaderboard({ leaderboard }) {
                 <td className="px-6 py-4 whitespace-nowrap">{index + 1}</td>
                 <td className="px-6 py-4 whitespace-nowrap">{program.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {program.participants}
+                  {program.participants || 0}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {program.completed_raids}
+                  {program.completed_raids || 0}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {parseFloat(program.total_rewards_distributed).toFixed(2)} SOL
+                  {parseFloat(program.total_rewards_distributed || 0).toFixed(
+                    2,
+                  )}{" "}
+                  SOL
                 </td>
               </tr>
             ))}
@@ -280,7 +528,7 @@ function ProgramLeaderboard({ leaderboard }) {
   );
 }
 
-function EnrolledPrograms({ programs, onEnrollClick }) {
+function EnrolledPrograms({ programs, allPrograms, onEnrollClick }) {
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
       <h3 className="text-xl font-semibold mb-4 text-green-400">
@@ -310,17 +558,30 @@ function EnrolledPrograms({ programs, onEnrollClick }) {
           You're not enrolled in any programs yet.
         </p>
       )}
-      <button
-        onClick={onEnrollClick}
-        className="mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300"
-      >
-        Enroll in a Program
-      </button>
+      {allPrograms.length > programs.length && (
+        <button
+          onClick={onEnrollClick}
+          className="mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300"
+        >
+          Enroll in a Program
+        </button>
+      )}
     </div>
   );
 }
 
 function RaidCompetitionsSection({ competitions, onJoinRaid }) {
+  if (!competitions || competitions.length === 0) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+        <h3 className="text-xl font-semibold mb-4 text-green-400">
+          Raid Competitions
+        </h3>
+        <p className="text-gray-300">No active competitions at the moment.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
       <h3 className="text-xl font-semibold mb-4 text-green-400">
@@ -362,66 +623,71 @@ function CompetitionCard({ competition, onJoinRaid }) {
       </h4>
       <p className="text-sm text-gray-300 mb-1">Status: {competition.status}</p>
       <p className="text-sm text-gray-300 mb-1">
-        Programs: {competition.enrolled_programs}/
-        {competition.required_programs}
+        Programs: {competition.enrolled_programs || 0}/
+        {competition.required_programs || 0}
       </p>
       {competition.start_time && (
         <p className="text-sm text-gray-300 mb-2">
           Starts: {new Date(competition.start_time).toLocaleString()}
         </p>
       )}
-      {competition.raids.map((raid) => (
-        <div key={raid.id} className="mt-2 p-2 bg-gray-600 rounded">
-          <p className="text-sm text-white">{raid.program_name}</p>
-          <p className="text-xs text-gray-300">
-            Reward Cap: {raid.reward_cap} SOL
-          </p>
-          <p className="text-xs text-gray-300">
-            Participants: {raid.participants_count}
-          </p>
-          <button
-            onClick={() => onJoinRaid(raid.id)}
-            className={`mt-1 w-full bg-${getStatusColor(competition.status)}-500 hover:bg-${getStatusColor(competition.status)}-600 text-white font-bold py-1 px-2 rounded text-sm`}
-            disabled={competition.status !== "pending"}
-          >
-            {competition.status === "pending"
-              ? "Join Raid"
-              : competition.status === "active"
-                ? "In Progress"
-                : "Completed"}
-          </button>
-        </div>
-      ))}
+      {competition.raids && competition.raids.length > 0 ? (
+        competition.raids.map((raid) => (
+          <div key={raid.id} className="mt-2 p-2 bg-gray-600 rounded">
+            <p className="text-sm text-white">{raid.program_name}</p>
+            <p className="text-xs text-gray-300">
+              Reward Cap: {raid.reward_cap || 0} SOL
+            </p>
+            <p className="text-xs text-gray-300">
+              Participants: {raid.participants_count || 0}
+            </p>
+            <button
+              onClick={() => onJoinRaid(raid.id)}
+              className={`mt-1 w-full bg-${getStatusColor(competition.status)}-500 hover:bg-${getStatusColor(competition.status)}-600 text-white font-bold py-1 px-2 rounded text-sm`}
+              disabled={competition.status !== "pending"}
+            >
+              {competition.status === "pending"
+                ? "Join Raid"
+                : competition.status === "active"
+                  ? "In Progress"
+                  : "Completed"}
+            </button>
+          </div>
+        ))
+      ) : (
+        <p className="text-sm text-gray-300 mt-2">
+          No raids in this competition yet.
+        </p>
+      )}
     </div>
   );
 }
 
-function RaidsSection({ raids, onJoinRaid, onUpdateEngagementScore }) {
+function RaidsSection({ raids, onJoinRaid }) {
+  if (!raids || raids.length === 0) {
+    return (
+      <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
+        <h3 className="text-xl font-semibold mb-4 text-green-400">Raids</h3>
+        <p className="text-gray-300">No active raids at the moment.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
       <h3 className="text-xl font-semibold mb-4 text-green-400">Raids</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {raids.map((raid) => (
-          <RaidCard
-            key={raid.id}
-            raid={raid}
-            onJoinRaid={onJoinRaid}
-            onUpdateEngagementScore={onUpdateEngagementScore}
-          />
+          <RaidCard key={raid.id} raid={raid} onJoinRaid={onJoinRaid} />
         ))}
       </div>
     </div>
   );
 }
 
-function RaidCard({ raid, onJoinRaid, onUpdateEngagementScore }) {
+function RaidCard({ raid, onJoinRaid }) {
   const [newScore, setNewScore] = useState("");
   const actionApiUrl = `https://bullposter.xyz/actions/raid-card?raidId=${raid.id}`;
-
-  const handleUpdateScore = () => {
-    onUpdateEngagementScore(raid.id, parseFloat(newScore));
-    setNewScore("");
-  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -441,14 +707,16 @@ function RaidCard({ raid, onJoinRaid, onUpdateEngagementScore }) {
       className={`bg-gray-700 rounded-lg p-4 border-2 border-${getStatusColor(raid.status)}-500 shadow-lg`}
     >
       <h4 className="text-lg font-semibold mb-2 text-green-400">
-        {raid.program_name}
+        {raid.program_name || "Unnamed Raid"}
       </h4>
-      <p className="text-sm text-gray-300 mb-1">Status: {raid.status}</p>
       <p className="text-sm text-gray-300 mb-1">
-        Reward Cap: {raid.reward_cap} SOL
+        Status: {raid.status || "Unknown"}
       </p>
       <p className="text-sm text-gray-300 mb-1">
-        Participants: {raid.participants_count}
+        Reward Cap: {raid.reward_cap || 0} SOL
+      </p>
+      <p className="text-sm text-gray-300 mb-1">
+        Participants: {raid.participants_count || 0}
       </p>
       <p className="text-sm text-gray-300 mb-2">
         {raid.start_time
@@ -464,12 +732,6 @@ function RaidCard({ raid, onJoinRaid, onUpdateEngagementScore }) {
             className="w-full p-2 mb-2 bg-gray-600 text-white rounded"
             placeholder="New engagement score"
           />
-          <button
-            onClick={handleUpdateScore}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-          >
-            Update Score
-          </button>
         </div>
       )}
       <button

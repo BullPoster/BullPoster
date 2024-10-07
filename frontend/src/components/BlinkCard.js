@@ -6,11 +6,14 @@ import { useActionSolanaWalletAdapter } from "@dialectlabs/blinks/hooks/solana";
 const BlinkCard = ({ actionApiUrl }) => {
   const [action, setAction] = useState(null);
   const { adapter } = useActionSolanaWalletAdapter(
-    "https://api.mainnet-beta.solana.com",
+    "https://api.devnet.solana.com",
   );
   const { action: fetchedAction } = useAction({ url: actionApiUrl, adapter });
 
+  console.log("From Action URL:", actionApiUrl);
+
   useEffect(() => {
+    console.log("Fetched Action:", fetchedAction);
     setAction(fetchedAction);
   }, [fetchedAction]);
 

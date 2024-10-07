@@ -24,11 +24,9 @@ smart-contract/*
 !smart-contract/src/
 !smart-contract/src/**/
 
-# Ignore everything in smart-contract except for smart-contract/src/
+# Ignore everything in actions except for smart-contract/src/
 actions/*
 !actions/src/
 actions/src/*
-!actions/src/pages/
-!actions/src/pages/**/
-!actions/src/utils/
-!actions/src/utils/**/
+!actions/src/app/
+!actions/src/app/**/

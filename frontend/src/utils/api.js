@@ -1,5 +1,3 @@
-import axios from "axios";
-
 const API_BASE_URL = "https://bullposter.xyz/api";
 
 export const fetchWithAuth = async (endpoint, options = {}) => {
@@ -9,7 +7,7 @@ export const fetchWithAuth = async (endpoint, options = {}) => {
       credentials: "include",
       headers: {
         ...options.headers,
-        "Content-Type": "application/json",
+        "Content-Type": options.headers?.["Content-Type"] || "application/json",
       },
     });
 
@@ -50,70 +48,73 @@ export const del = (endpoint) =>
 
 export const login = (data) => post("/auth/login/", data);
 export const logout = () => post("/auth/logout/");
-export const getUserDashboard = (publicKey) =>
-  get(`/user-dashboard/${publicKey}/`);
-export const getCreatorDashboard = (publicKey) =>
-  get(`/creator-dashboard/${publicKey}/`);
-export const createProgram = async (formData) => {
-  const response = await axios.post("/create-program/", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
+
+export const uploadProgramPicture = async (
+  raidProgramAccountPublicKey,
+  profilePicture,
+) => {
+  const formData = new FormData();
+  formData.append("raidProgramAccountPublicKey", raidProgramAccountPublicKey);
+  formData.append("profile_picture", profilePicture);
+
+  const response = await fetch(`${API_BASE_URL}/upload-program-picture/`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
   });
-  return response.data;
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to upload program picture");
+  }
+
+  return response.json();
 };
-export const updateProgram = async (programId, formData) => {
-  const response = await axios.put(`/update-program/${programId}/`, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
+
+export const uploadProfilePicture = async (file) => {
+  const formData = new FormData();
+  formData.append("profile_picture", file);
+
+  const response = await fetch(`${API_BASE_URL}/upload-profile-picture/`, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
   });
-  return response.data;
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to upload profile picture");
+  }
+
+  return response.json();
+};
+
+export const updateProgram = async (programId, programData) => {
+  const formData = new FormData();
+  formData.append("name", programData.name);
+  formData.append("description", programData.description);
+  if (programData.profile_picture) {
+    formData.append("profile_picture", programData.profile_picture);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/update-program/${programId}/`, {
+    method: "PUT",
+    body: formData,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "Failed to update program");
+  }
+
+  return response.json();
 };
 export const deleteProgram = (programId) =>
   del(`/delete-program/${programId}/`);
-export const initiateRaid = (programId, data) =>
-  post(`/initiate-raid/${programId}/`, data);
 export const joinRaid = (raidId) => post(`/join-raid/${raidId}/`);
-export const getRaidStatus = (raidId) => get(`/raid-status/${raidId}/`);
-export const getAvailablePrograms = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/available-programs/`, {
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (!Array.isArray(data.programs)) {
-      console.error("Received invalid data format:", data);
-      throw new Error("Received invalid data from the server");
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Error fetching available programs:", error);
-    throw error;
-  }
-};
-
-export const getPvpRequests = () => get("/pvp-requests/");
-export const sendPvpRequest = (data) => post("/send-pvp-request/", data);
 export const respondToPvpRequest = (requestId, data) =>
   post(`/respond-to-pvp-request/${requestId}/`, data);
-export const getActivePvpCompetitions = () => get("/active-pvp-competitions/");
-export const enrollInProgram = (programId) =>
-  post("/enroll-in-program/", { program_id: programId });
-export const updateEngagementScore = (participationId, data) =>
-  post(`/update-engagement-score/${participationId}/`, data);
-export const getUserData = () => get("/user-data/");
-export const updateUserProfile = (data) => put("/update-profile/", data);
 export const getPresaleTransactions = () => get("/presale-transactions/");
 export const checkPresaleAccess = () => get("/check-presale-access/");
 export const grantPresaleAccess = (data) =>
